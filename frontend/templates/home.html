@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MIR — Home</title>
+  <link rel="stylesheet" href="/static/style.css?v=15" />
+</head>
+<body class="page-home" data-page="home">
+  <canvas id="webgl" aria-hidden="true"></canvas>
+
+  <div class="ui">
+    <header class="site-nav">
+      <a class="logo" href="/"><i>MIR</i><span>Medical Imaging Report</span></a>
+      <nav class="flow">
+        <a class="on" href="/"><em>01</em> Home</a>
+        <a href="/upload"><em>02</em> Upload</a>
+        <a class="dim" href="/upload"><em>03</em> Output</a>
+      </nav>
+      <a class="nav-cta" href="/upload">Open console</a>
+    </header>
+
+    <section class="landing">
+      <div class="landing-copy">
+        <p class="eyebrow">Industrial AI imaging pipeline</p>
+        <h1>From scan to<br /><span>signed report.</span></h1>
+        <p class="lede">
+          A three-stage clinical console — Home, Upload, Output — powered by a live 3D imaging stage.
+          Accurate ingest · inference · FHIR · clinician review.
+        </p>
+        <div class="cta-row">
+          <a class="btn btn-main" href="/upload">Start upload</a>
+          <a class="btn btn-ghost" href="#pipeline">See pipeline</a>
+        </div>
+        <div class="home-stats">
+          <div><b>{{ report_count }}</b><span>Reports</span></div>
+          <div><b>{% if active_model %}{{ active_model.mode }}{% else %}demo{% endif %}</b><span>Mode</span></div>
+          <div><b id="scpStatusText">{% if scp.running %}ON{% else %}OFF{% endif %}</b><span>PACS</span></div>
+        </div>
+        <div class="model-roster home-models">
+          <p class="card-kicker">Loaded disease models</p>
+          <div class="model-grid">
+            {% for m in disease_models %}
+            <article class="model-card status-{{ m.status }}">
+              <div class="model-card-top">
+                <strong>{{ m.name }}</strong>
+                <span class="model-pill">{{ m.status }}</span>
+              </div>
+              <p class="model-meta">{{ m.modality }} · {{ m.scan_type }}{% if m.accuracy is not none %} · {% if m.metric_label == 'dice' %}dice{% else %}acc{% endif %} {{ (m.accuracy * 100)|round|int }}%{% endif %}</p>
+              <p class="model-diseases">{{ m.diseases | join(' · ') }}</p>
+            </article>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <div class="landing-card glass-float">
+        <p class="card-kicker">Journey</p>
+        <ol class="journey" id="pipeline">
+          <li class="active"><strong>01 Home</strong><span>Enter the imaging console</span></li>
+          <li><strong>02 Upload</strong><span>Ingest PNG / DICOM / ZIP</span></li>
+          <li><strong>03 Output</strong><span>Review findings &amp; sign off</span></li>
+        </ol>
+        <a class="btn btn-main full" href="/upload">Continue to upload →</a>
+        <p class="legal-mini"><b>Research only</b> — not a medical device. No real PHI.</p>
+      </div>
+    </section>
+
+    {% if recent %}
+    <section class="home-recent">
+      <div class="section-title">
+        <h2>Recent outputs</h2>
+        <a href="/upload">New study</a>
+      </div>
+      <div class="recent-strip">
+        {% for r in recent %}
+        <a class="recent-tile" href="/report/{{ r.scan_id }}">
+          <span class="rt-mod">{{ r.modality or 'OT' }}</span>
+          <strong>{{ r.filename }}</strong>
+          <span class="rt-meta">{{ r.findings_count }} findings · {{ r.review_status or 'draft' }}</span>
+        </a>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+  </div>
+
+  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+  <script src="/static/scene3d.js?v=15"></script>
+  <script src="/static/home.js?v=15"></script>
+</body>
+</html>

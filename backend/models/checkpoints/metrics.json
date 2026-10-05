@@ -1,0 +1,26 @@
+{
+  "dataset": "pneumoniamnist",
+  "dataset_description": "The PneumoniaMNIST is based on a prior dataset of 5,856 pediatric chest X-Ray images. The task is binary-class classification of pneumonia against normal. We split the source training set with a ratio of 9:1 into training and validation set and use its source validation set as the test set. The source images are gray-scale, and their sizes are (384\u22122,916)\u00d7(127\u22122,713). We center-crop the images and resize them into 1\u00d728\u00d728.",
+  "label_map": {
+    "0": "normal",
+    "1": "pneumonia"
+  },
+  "image_size": 28,
+  "epochs": 12,
+  "trained_at": "2026-08-07T07:19:48.352332Z",
+  "val_auc_at_selection": 0.996,
+  "test_metrics": {
+    "auc": 0.9608,
+    "accuracy": 0.867,
+    "sensitivity": 0.9923,
+    "specificity": 0.6581,
+    "n": 624,
+    "confusion_matrix": {
+      "tn": 154,
+      "fp": 80,
+      "fn": 3,
+      "tp": 387
+    }
+  },
+  "notes": "Trained on a public 2D chest X-ray benchmark for demonstration of a real training/evaluation pipeline. Not trained on CT/MRI, not hospital data, not clinically validated. See README for what a real CT/MRI-specific model would require."
+}

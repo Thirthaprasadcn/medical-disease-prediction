@@ -1,0 +1,14 @@
+{
+  "detector_id": "mini-unet-brats-proxy",
+  "dataset": "brain-tumor-mri + weak pseudo-masks (BraTS-style region head)",
+  "framework": "pytorch-MiniUNet",
+  "trained_at": "2026-10-03T11:38:06.142530Z",
+  "status": "trained",
+  "test_metrics": {
+    "dice": 0.7722,
+    "sensitivity": null,
+    "specificity": null,
+    "n": 360
+  },
+  "notes": "Trained on public brain MRI images with weak intensity pseudo-masks (not official BraTS multi-modal volumes / nnU-Net). Research prototype."
+}

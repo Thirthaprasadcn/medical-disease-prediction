@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ report.filename }} — MIR Output</title>
+  <link rel="stylesheet" href="/static/style.css?v=15" />
+</head>
+<body class="page-output is-report" data-page="output">
+  <canvas id="webgl" aria-hidden="true"></canvas>
+
+  <div class="ui">
+    <header class="site-nav">
+      <a class="logo" href="/"><i>MIR</i><span>Medical Imaging Report</span></a>
+      <nav class="flow">
+        <a href="/"><em>01</em> Home</a>
+        <a href="/upload"><em>02</em> Upload</a>
+        <a class="on" href="/report/{{ report.scan_id }}"><em>03</em> Output</a>
+      </nav>
+      <a class="nav-cta" href="/upload">New upload</a>
+    </header>
+
+    <div class="report-ui">
+      <div class="top-legal" style="border-radius:14px;margin-bottom:14px;">
+        <span><b>Research only</b> · {{ report.disclaimer[:80] }}…</span>
+        <span id="signoffStatus">{{ reviews.signoff.status if reviews and reviews.signoff else report.review_status }}</span>
+      </div>
+
+      <header class="report-head">
+        <div>
+          <p class="eyebrow">Step 03 · Output</p>
+          <h1>{{ report.filename }}</h1>
+          <p class="sub">{{ report.scan_id }} · {{ report.modality or 'OT' }} · {{ report.generated_at }} · {{ report.model_info.detector }}</p>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <span class="tag signal">{{ report.findings|length }} findings</span>
+          {% if report.workflow and report.workflow.priority %}
+          <span class="tag warn">{{ report.workflow.priority }}</span>
+          {% endif %}
+          <span class="tag">{{ report.model_info.mode or 'demo' }}</span>
+        </div>
+      </header>
+
+      <div class="report-grid">
+        <section class="glass" id="viewer">
+          <div class="tools">
+            <button class="chip" type="button" id="toggleOverlayBtn">Hide overlay</button>
+            <button class="chip" type="button" id="invertBtn">Invert</button>
+            <label class="chip" style="cursor:default;">
+              Opacity
+              <input id="overlayOpacity" type="range" min="20" max="100" value="100" style="width:80px;vertical-align:middle;accent-color:#0f8f78;" />
+            </label>
+          </div>
+          <div class="films">
+            <figure>
+              <img id="originalImg" src="/api/scans/{{ report.scan_id }}/original" alt="Original" />
+              <figcaption>Original</figcaption>
+            </figure>
+            <figure id="overlayFigure">
+              <img id="overlayImg" src="/api/scans/{{ report.scan_id }}/overlay" alt="Overlay" />
+              <figcaption>AI overlay</figcaption>
+            </figure>
+          </div>
+        </section>
+
+        <aside class="glass">
+          <h2 style="margin:0 0 8px;letter-spacing:-0.03em;">Impression</h2>
+          <p style="margin:0 0 8px;color:var(--ink-2);line-height:1.5;">{{ report.summary }}</p>
+          <dl class="kv">
+            <dt>Modality</dt><dd>{{ report.modality or 'OT' }}</dd>
+            <dt>Anatomy</dt><dd>{{ report.model_info.anatomy or '—' }}</dd>
+            <dt>Disease model</dt><dd>{{ report.model_info.disease_model or report.model_info.type }}</dd>
+            <dt>Route</dt><dd>{{ report.model_info.anatomy_reason or '—' }}</dd>
+            {% if report.workflow %}
+            <dt>Scan type</dt><dd>{{ report.workflow.scan_type or 'auto' }}</dd>
+            <dt>Reviewer</dt><dd>{{ report.workflow.reviewer or '—' }}</dd>
+            {% endif %}
+          </dl>
+
+          {% if report.image_level_classification.available %}
+          {% set c = report.image_level_classification %}
+          <h2 style="margin:16px 0 6px;font-size:1.1rem;">Disease assessment</h2>
+          <p style="margin:0;"><strong>{{ c.predicted_label }}</strong>{% if c.probability is not none %} · {{ c.probability }}{% endif %}</p>
+          <p class="sub" style="margin-top:6px;">Trained on {{ c.dataset_trained_on }}{% if c.anatomy %} · anatomy {{ c.anatomy }}{% endif %}</p>
+          {% if c.class_probabilities %}
+          <ul class="sub" style="margin:8px 0 0;padding-left:18px;">
+            {% for name, p in c.class_probabilities.items() %}
+            <li>{{ name }} · {{ p }}</li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+          <p class="sub" style="margin-top:8px;">{{ c.notes }}</p>
+          {% else %}
+          {% set c = report.image_level_classification %}
+          <h2 style="margin:16px 0 6px;font-size:1.1rem;">Disease assessment</h2>
+          <p class="sub" style="margin:0;">{{ c.notes or 'No disease classifier applied for this anatomy.' }}</p>
+          {% endif %}
+
+          <div class="actions" id="exports">
+            <button class="btn btn-main" id="signoffBtn" type="button">Sign off</button>
+            <a class="btn btn-ghost" href="/api/scans/{{ report.scan_id }}/fhir" target="_blank">FHIR</a>
+            <a class="btn btn-ghost" href="/api/scans/{{ report.scan_id }}" target="_blank">JSON</a>
+            <a class="btn btn-ghost" href="/upload">Upload another</a>
+          </div>
+        </aside>
+      </div>
+
+      <section class="glass" id="findings" style="margin-top:16px;">
+        <h2 style="margin:0 0 4px;letter-spacing:-0.03em;">Findings</h2>
+        <p class="sub">Accept / reject persists for feedback</p>
+        <div class="tools">
+          <button class="chip" type="button" data-filter="all">All</button>
+          <button class="chip" type="button" data-filter="high">High</button>
+          <button class="chip" type="button" data-filter="moderate">Moderate</button>
+          <button class="chip" type="button" data-filter="low">Low</button>
+        </div>
+
+        {% if report.findings %}
+          {% for f in report.findings %}
+          <article class="finding finding-row" data-severity="{{ f.severity_label }}">
+            <div class="id">#{{ f.id }}</div>
+            <div>
+              <h3>{{ f.location.quadrant }} · {{ f.size_px_diameter }}px · {{ f.polarity }}</h3>
+              <p>{{ f.narrative }}</p>
+              <div class="tools" style="margin-top:8px;margin-bottom:0;">
+                <span class="tag">conf {{ f.confidence }}</span>
+                {% if 'high' in f.severity_label %}
+                <span class="tag warn">{{ f.severity_label }}</span>
+                {% elif 'moderate' in f.severity_label %}
+                <span class="tag warn">{{ f.severity_label }}</span>
+                {% else %}
+                <span class="tag good">{{ f.severity_label }}</span>
+                {% endif %}
+              </div>
+            </div>
+            {% set existing = review_map.get(f.id|string) %}
+            <div class="review-actions" data-scan-id="{{ report.scan_id }}" data-finding-id="{{ f.id }}">
+              <button class="btn-accept {% if existing and existing.decision == 'accept' %}active{% endif %}" type="button">Accept</button>
+              <button class="btn-reject {% if existing and existing.decision == 'reject' %}active{% endif %}" type="button">Reject</button>
+            </div>
+          </article>
+          {% endfor %}
+        {% else %}
+          <p class="empty">No candidate regions flagged.</p>
+        {% endif %}
+      </section>
+
+      {% if report.dicom_metadata %}
+      <section class="glass" id="dicom" style="margin-top:16px;">
+        <h2 style="margin:0 0 10px;">DICOM metadata</h2>
+        <pre class="meta-block">{{ report.dicom_metadata | tojson(indent=2) }}</pre>
+      </section>
+      {% endif %}
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+  <script src="/static/scene3d.js?v=15"></script>
+  <script src="/static/review.js?v=15"></script>
+</body>
+</html>

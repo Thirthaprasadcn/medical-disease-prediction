@@ -1,0 +1,29 @@
+{
+  "detector_id": "ct-nodule-cnn-lidc-proxy",
+  "dataset": "NoduleMNIST3D (MedMNIST) center-slice proxy for LIDC-style CT nodules",
+  "framework": "pytorch-CTNoduleCNN",
+  "trained_at": "2026-10-03T11:33:24.183988Z",
+  "status": "trained",
+  "test_metrics": {
+    "accuracy": 0.8645,
+    "auc": 0.9323,
+    "sensitivity": 0.7031,
+    "specificity": 0.9065,
+    "n": 310,
+    "confusion_matrix": [
+      [
+        223,
+        23
+      ],
+      [
+        19,
+        45
+      ]
+    ]
+  },
+  "notes": "Trained on public NoduleMNIST3D 2D center slices (not full LIDC-IDRI / nnDetection). Research prototype \u2014 not a medical device.",
+  "label_map": {
+    "0": "no_nodule",
+    "1": "nodule"
+  }
+}

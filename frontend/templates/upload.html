@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MIR — Upload</title>
+  <link rel="stylesheet" href="/static/style.css?v=15" />
+</head>
+<body class="page-upload" data-page="upload">
+  <canvas id="webgl" aria-hidden="true"></canvas>
+
+  <div class="ui">
+    <header class="site-nav">
+      <a class="logo" href="/"><i>MIR</i><span>Medical Imaging Report</span></a>
+      <nav class="flow">
+        <a href="/"><em>01</em> Home</a>
+        <a class="on" href="/upload"><em>02</em> Upload</a>
+        <a class="dim" href="#"><em>03</em> Output</a>
+      </nav>
+      <a class="nav-cta" href="/">← Home</a>
+    </header>
+
+    <section class="upload-layout">
+      <aside class="upload-side">
+        <p class="eyebrow">Step 02 · Ingest</p>
+        <h1>Load the study<br />onto the stage.</h1>
+        <p class="lede">Configure mode, windowing, and priority. The 3D gantry tracks your pipeline live.</p>
+        <div class="pipeline-3d" id="pipeline">
+          <div class="step" data-stage="ingest">01 Ingest</div>
+          <div class="step" data-stage="preprocess">02 Preprocess</div>
+          <div class="step" data-stage="inference">03 Infer</div>
+          <div class="step" data-stage="report">04 Report</div>
+          <div class="step" data-stage="review">05 Review</div>
+        </div>
+        <div class="model-roster">
+          <p class="card-kicker">Disease models</p>
+          {% for m in disease_models %}
+          <article class="model-card status-{{ m.status }}">
+            <div class="model-card-top">
+              <strong>{{ m.name }}</strong>
+              <span class="model-pill">{{ m.status }}</span>
+            </div>
+            <p class="model-meta">{{ m.modality }} · {{ m.id }}{% if m.accuracy is not none %} · {% if m.metric_label == 'dice' %}dice{% else %}acc{% endif %} {{ (m.accuracy * 100)|round|int }}%{% endif %}</p>
+            <p class="model-diseases">{{ m.diseases | join(' · ') }}</p>
+          </article>
+          {% endfor %}
+          <div class="side-meta" style="margin-top:12px;">
+            <div><span>Registry default</span><b>{% if active_model %}{{ active_model.model_id }}{% else %}—{% endif %}</b></div>
+            <div><span>PACS</span><b id="scpStatusText">{% if scp.running %}ON · {{ scp.port }}{% else %}OFF{% endif %}</b></div>
+          </div>
+        </div>
+      </aside>
+
+      <div class="console" id="consoleCard">
+        <h2>Upload console</h2>
+        <p class="sub">PNG · JPG · DICOM · ZIP · max 100MB</p>
+
+        <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Upload study">
+          <div>
+            <h3 id="dzTitle">Drop imaging study</h3>
+            <p class="hint">or click to browse</p>
+            <div class="preview" id="previewWrap"><img id="previewImg" alt="Preview" /></div>
+            <div class="file-name" id="fileChip"></div>
+          </div>
+        </div>
+        <input type="file" id="fileInput" accept="image/png,image/jpeg,.dcm,.dicom,.zip,application/dicom" hidden />
+
+        <div class="grid-2">
+          <div class="field full">
+            <label for="anatomySelect">Scan type (required for accurate disease model)</label>
+            <select id="anatomySelect">
+              <option value="auto">Auto-detect (MRI / X-ray / CT)</option>
+              <option value="brain" selected>Brain MRI / tumor</option>
+              <option value="chest">Chest X-ray / pneumonia</option>
+              <option value="ct">Chest CT / nodules</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="modeSelect">Mode</label>
+            <select id="modeSelect">
+              <option value="clinical" selected>Clinical (anatomy-aware)</option>
+              <option value="demo">Demo</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="windowSelect">CT window</label>
+            <select id="windowSelect">
+              <option value="default">Auto</option>
+              <option value="lung">Lung</option>
+              <option value="soft">Soft tissue</option>
+              <option value="bone">Bone</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="prioritySelect">Priority</label>
+            <select id="prioritySelect">
+              <option value="routine">Routine</option>
+              <option value="urgent">Urgent</option>
+              <option value="stat">STAT</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="reviewerInput">Reviewer</label>
+            <input id="reviewerInput" type="text" value="radiologist-demo" />
+          </div>
+          <div class="field full">
+            <label for="noteInput">Clinical indication</label>
+            <textarea id="noteInput" placeholder="Optional context for the report"></textarea>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="btn btn-main" id="uploadBtn" disabled>Analyze → Output</button>
+          <button class="btn btn-ghost" id="clearBtn" type="button">Clear</button>
+          <button class="btn btn-ghost" id="startScpBtn" type="button">
+            {% if scp.running %}PACS live{% else %}Start PACS{% endif %}
+          </button>
+          <span class="progress" id="progress"><i></i></span>
+        </div>
+        <div class="status" id="status" style="margin-top:10px;"></div>
+        <p class="legal-mini"><b>Research only</b> — outputs are not clinically validated.</p>
+      </div>
+    </section>
+
+    {% if queue %}
+    <section class="home-recent" style="padding-top:0;">
+      <div class="section-title">
+        <h2>Study queue</h2>
+        <span class="rt-meta">PACS / uploads</span>
+      </div>
+      <div class="recent-strip">
+        {% for s in queue[:8] %}
+        <a class="recent-tile" {% if s.scan_id %}href="/report/{{ s.scan_id }}"{% else %}href="#"{% endif %}>
+          <span class="rt-mod">{{ s.modality or 'OT' }}</span>
+          <strong>{{ s.filename }}</strong>
+          <span class="rt-meta">{{ s.status }} · {{ s.source }}</span>
+        </a>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+  </div>
+
+  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+  <script src="/static/scene3d.js?v=15"></script>
+  <script src="/static/app.js?v=15"></script>
+</body>
+</html>
